@@ -1,0 +1,14 @@
+logs
+*.log
+node_modules
+.bak
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
