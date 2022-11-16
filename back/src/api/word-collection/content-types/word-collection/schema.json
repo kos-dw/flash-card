@@ -1,0 +1,32 @@
+{
+  "kind": "collectionType",
+  "collectionName": "word_collections",
+  "info": {
+    "singularName": "word-collection",
+    "pluralName": "word-collections",
+    "displayName": "Word collection",
+    "description": ""
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "unique": true
+    },
+    "japanese": {
+      "type": "string",
+      "required": true,
+      "unique": false
+    },
+    "category": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::category.category",
+      "inversedBy": "word_collections"
+    }
+  }
+}

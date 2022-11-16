@@ -1,0 +1,11 @@
+{
+  "eslint.workingDirectories": ["./front", "./back"],
+  "path-intellisense.autoSlashAfterDirectory": true,
+  "path-intellisense.autoTriggerNextSuggestion": true,
+  "path-intellisense.absolutePathToWorkspace": true,
+  "path-intellisense.mappings": {
+    "/": "${workspaceFolder}/front/public"
+  },
+  "javascript.suggest.paths": false,
+  "typescript.suggest.paths": false
+}
