@@ -1,4 +1,5 @@
 import type { FC } from 'react';
+import { Suspense } from 'react';
 import { Header, Footer } from 'components/organisms';
 import { SignIn, useAuth } from 'features/authentication';
 import { Helmet } from 'react-helmet-async';
@@ -49,12 +50,14 @@ const IndexRoutes: FC = () => {
         <link rel="shortcut icon" href="/img/favicons/favicon.ico" />
       </Helmet>
       <Header />
-      <Routes>
-        <Route path="update" element={<Update />} />
-        <Route path="mypage" element={<MyPage />} />
-        <Route path="/" element={<Home />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <Suspense>
+        <Routes>
+          <Route path="update" element={<Update />} />
+          <Route path="mypage" element={<MyPage />} />
+          <Route path="/" element={<Home />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
       <Footer />
     </>
   );

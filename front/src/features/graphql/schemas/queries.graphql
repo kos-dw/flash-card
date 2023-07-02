@@ -1,0 +1,101 @@
+query CardFindAll {
+  wordCollections {
+    data {
+      id
+      attributes {
+        title
+        japanese
+        category {
+          data {
+            id
+            attributes {
+              name
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+query CategoryFindAll {
+  categories {
+    data {
+      id
+      attributes {
+        name
+      }
+    }
+  }
+}
+
+query UserData {
+  me {
+    id
+    username
+    email
+  }
+}
+
+mutation CardUpdate(
+  $id: ID!
+  $title: String!
+  $japanese: String!
+  $category: ID!
+) {
+  updateWordCollection(
+    id: $id
+    data: { title: $title, japanese: $japanese, category: $category }
+  ) {
+    data {
+      id
+      attributes {
+        title
+        japanese
+        category {
+          data {
+            id
+          }
+        }
+      }
+    }
+  }
+}
+
+mutation CardCreate($title: String!, $japanese: String!, $category: ID!) {
+  createWordCollection(
+    data: { title: $title, japanese: $japanese, category: $category }
+  ) {
+    data {
+      id
+      attributes {
+        title
+        japanese
+        category {
+          data {
+            id
+          }
+        }
+      }
+    }
+  }
+}
+
+mutation CardErase($id: ID!) {
+  deleteWordCollection(id: $id) {
+    data {
+      id
+    }
+  }
+}
+
+mutation SignIn($identifier: String!, $password: String!) {
+  login(input: { identifier: $identifier, password: $password }) {
+    user {
+      id
+      username
+      email
+    }
+    jwt
+  }
+}

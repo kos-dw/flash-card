@@ -7,6 +7,7 @@ interface ImportMetaEnv {
   readonly VITE_API_VOICEURI: string;
   readonly VITE_API_TOKEN: string;
   readonly VITE_API_AVATAR_UID: string;
+  readonly VITE_GRAPHQL_ANDPOINT: string;
 }
 
 interface ImportMeta {

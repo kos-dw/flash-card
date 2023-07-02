@@ -1,4 +1,5 @@
 import type { FC } from 'react';
+import { useState } from 'react';
 import {
   FormLabel,
   FormControl,
@@ -8,13 +9,12 @@ import {
   useColorModeValue,
 } from '@chakra-ui/react';
 import { yupResolver } from '@hookform/resolvers/yup';
+import { useSignInMutation } from 'features/graphql';
 import { useForm } from 'react-hook-form';
 import type { SubmitHandler } from 'react-hook-form';
-import { kyClient } from 'utils';
 import type { InferType } from 'yup';
 import * as yup from 'yup';
 import { useAuth } from '../hooks/useAuth';
-import type { Response } from '../types/';
 
 const validationSchema = yup.object({
   Eメール: yup
@@ -34,12 +34,31 @@ const validationSchema = yup.object({
 
 type FormSchema = InferType<typeof validationSchema>;
 
-export const SignIn: FC = () => {
-  const logoSvg = useColorModeValue(
-    '/img/logo_base1.svg',
-    '/img/logo_white1.svg'
+type UserData = {
+  user: {
+    id: string;
+    username: string;
+    email: string;
+  };
+  jwt: string;
+};
+
+const isUser = (arg: unknown): arg is UserData => {
+  const uk = arg as UserData;
+
+  return (
+    uk?.user != null &&
+    typeof uk?.user?.id === 'string' &&
+    typeof uk?.user?.username === 'string' &&
+    typeof uk?.user?.email === 'string' &&
+    typeof uk?.jwt === 'string'
   );
-  const [_, dispatch] = useAuth();
+};
+
+export const SignIn: FC = () => {
+  const [_auth, dispatch] = useAuth();
+  const [_resultSignIn, signIn] = useSignInMutation();
+  const [isInvalid, setIsInvalid] = useState(false);
 
   const {
     register,
@@ -55,24 +74,38 @@ export const SignIn: FC = () => {
     },
   });
 
+  const logoSvg = useColorModeValue(
+    '/img/logo_base1.svg',
+    '/img/logo_white1.svg'
+  );
+
   const onSubmit: SubmitHandler<FormSchema> = async (data) => {
-    const res: Response = await kyClient
-      .post('auth/local', {
-        json: {
-          identifier: data.Eメール,
-          password: data.パスフレーズ,
-        },
-      })
-      .json();
+    const result = await signIn({
+      identifier: data.Eメール,
+      password: data.パスフレーズ,
+    });
 
-    const userInfo = {
-      id: res.user.id.toString(),
-      username: res.user.username,
-      email: res.user.email,
-      jwt: res.jwt,
-    };
+    const userData = result.data?.login as unknown;
 
-    dispatch({ type: 'SIGNIN', payload: userInfo });
+
+    if (isUser(userData)) {
+      const userInfo = {
+        id: userData.user.id,
+        username: userData.user.username,
+        email: userData.user.email,
+        jwt: userData.jwt,
+      };
+
+      dispatch({ type: 'SIGNIN', payload: userInfo });
+      setIsInvalid(false);
+    } else {
+      setIsInvalid(true);
+      if (result.error != null) {
+        throw Error(result.error.message);
+      } else {
+        throw Error('API type error');
+      }
+    }
   };
 
   return (
@@ -81,7 +114,14 @@ export const SignIn: FC = () => {
         <div className="w-full p-3">
           <div className="container">
             <img src={logoSvg} alt="" className="mb-5" />
-            <p className="text-center">サインインしてください。</p>
+            {!isInvalid ? (
+              <p className="text-center">サインインしてください。</p>
+            ) : (
+              <p className="text-center text-amber-700">
+                Eメール、パスフレーズ、またはその両方が違います。
+              </p>
+            )}
+
             <form noValidate onSubmit={handleSubmit(onSubmit)}>
               <ul className="mb-5 grid grid-cols-3 gap-4">
                 <li className="col-span-3">

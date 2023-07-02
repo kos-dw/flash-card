@@ -1,61 +1,42 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from 'features/authentication';
-import { kyClient, isKyError } from 'utils';
-import { isCategories } from '../types';
-import type {
-  CategorySchema,
-  WCResponse,
-  Category,
-  UseCategoryFindAll,
-} from '../types';
+import { useCategoryFindAllQuery } from 'features/graphql';
+import { isCategoriesGql } from '../types';
+import type { CategorySchema, UseCategoryFindAll } from '../types';
 
 export const useCategoryFindAll = (): UseCategoryFindAll => {
   const [categories, setCategories] = useState<CategorySchema[]>();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<unknown | undefined>();
   const [auth] = useAuth();
+  const [result] = useCategoryFindAllQuery();
+  const { data, fetching, error } = result;
 
-  const fetchCategoryFindAll = async (
-    endpoint: string,
-    token: string
-  ): Promise<void> => {
-    try {
-      const json: WCResponse<Category[]> = await kyClient
-        .get(endpoint, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        .json();
-      if (!isCategories(json.data)) throw Error('API type error');
+  const createCollection = useCallback((): void => {
+    const collection = data?.categories?.data as unknown;
 
-      setCategories(
-        json.data.map((row) => ({
-          uid: typeof row.id === 'number' ? row.id.toString() : row.id,
-          カテゴリ: row.attributes.name,
-        }))
-      );
-    } catch (e) {
-      if (e instanceof Error) {
-        console.error(e);
-      } else if (isKyError(e)) {
-        console.error(e.response.statusText);
-      } else if (typeof e === 'string') {
-        console.error(e);
-      }
+    if (isCategoriesGql(collection)) {
+      const mutatedCollection = collection.map((row) => ({
+        uid: row.id,
+        カテゴリ: row.attributes.name,
+      }));
+      setCategories(mutatedCollection);
+    } else {
+      throw Error('API type error');
     }
-  };
+  }, [data]);
 
   useEffect(() => {
     try {
-      setIsLoading(true);
-      if (auth != null) void fetchCategoryFindAll('categories', auth.jwt);
-      setIsLoading(false);
+      if (auth != null) createCollection();
     } catch (e) {
-      setError(e);
-      setIsLoading(false);
+      if (e instanceof Error) {
+        console.error('Oh no! We got an error:', e.message);
+      } else if (typeof e === 'string') {
+        console.error('Oh no! We got an error:', e);
+      } else {
+        console.log('Unexpected error');
+      }
     }
-  }, [auth, isLoading]);
+  }, [auth, createCollection, fetching]);
 
-  return [categories, { isLoading, error }];
+  return [categories, { isLoading: fetching, error }];
 };

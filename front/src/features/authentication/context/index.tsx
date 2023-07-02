@@ -1,30 +1,54 @@
 import { createContext, useReducer } from 'react';
 import type { FC, PropsWithChildren, Dispatch } from 'react';
-import { kyClient, isKyError } from 'utils';
-import type { User, ResponseWithToken } from '../types';
+import { useUserDataQuery } from 'features/graphql';
+import type { User } from '../types';
 
+// type declaration from here
 type AuthState = User | null;
-interface AuthAction {
+type AuthAction = {
   type: 'SIGNIN' | 'SIGNOUT';
   payload?: User;
-}
-
+};
+type UserData = {
+  id: string;
+  username: string;
+  email: string;
+};
 type AuthContextSchema = [AuthState, Dispatch<AuthAction>];
 export type ReturnTypeUseAuth = AuthContextSchema;
+// So far
 
-const initialContext: AuthContextSchema = [null, () => undefined];
+// function for type guard
+const isUser = (arg: unknown): arg is UserData => {
+  const uk = arg as UserData;
+
+  const result =
+    typeof uk?.id === 'string' &&
+    typeof uk?.username === 'string' &&
+    typeof uk?.email === 'string';
+
+  // console.log(result, uk);
+
+  return result;
+};
+
+export const AuthContext = createContext<AuthContextSchema>([
+  null,
+  () => undefined,
+]);
 
 const reducer = (state: AuthState, action: AuthAction): AuthState => {
   switch (action.type) {
     case 'SIGNIN': {
-      const userInfo = action.payload != null ? action.payload : null;
+      const userInfo = action.payload;
 
       if (userInfo != null) {
-        const flashCardToken = userInfo.jwt;
-        localStorage.setItem(import.meta.env.VITE_API_TOKEN, flashCardToken);
+        localStorage.setItem(import.meta.env.VITE_API_TOKEN, userInfo.jwt);
+
+        return userInfo;
       }
 
-      return userInfo;
+      return null;
     }
     case 'SIGNOUT': {
       localStorage.removeItem(import.meta.env.VITE_API_TOKEN);
@@ -37,37 +61,29 @@ const reducer = (state: AuthState, action: AuthAction): AuthState => {
   }
 };
 
-export const AuthContext = createContext<AuthContextSchema>(initialContext);
-
 export const AuthProvider: FC<PropsWithChildren> = ({ children }) => {
   const [auth, dispatch] = useReducer(reducer, null);
+  const [result] = useUserDataQuery();
+  const { data } = result;
 
-  const setUserIdentifier = async (token: string) => {
-    try {
-      const res = await kyClient.get(`users/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data: ResponseWithToken = await res.json();
-      const userIdentifier = {
-        id: data.id.toString(),
+  const userData = data?.me as unknown;
+  const token = localStorage.getItem(import.meta.env.VITE_API_TOKEN);
+
+
+  const setUserIdentifier = (token: string, data: unknown) => {
+    if (isUser(data)) {
+      const user = {
+        id: data.id,
         username: data.username,
         email: data.email,
         jwt: token,
       };
 
-      dispatch({ type: 'SIGNIN', payload: userIdentifier });
-    } catch (e) {
-      if (isKyError(e)) {
-        console.error('An error occurred:', e.response.statusText);
-      }
+      dispatch({ type: 'SIGNIN', payload: user });
     }
   };
 
-  const token = localStorage.getItem(import.meta.env.VITE_API_TOKEN);
-
-  if (token != null && auth == null) void setUserIdentifier(token);
+  if (token != null && auth == null) setUserIdentifier(token, userData);
 
   return (
     <AuthContext.Provider value={[auth, dispatch]}>

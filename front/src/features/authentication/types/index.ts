@@ -1,20 +1,20 @@
-export interface Response {
+export type Response = {
   jwt: string;
   user: {
     id: number;
     username: string;
     email: string;
   };
-}
-export interface User {
+};
+export type User = {
   id: string;
   username: string;
   email: string;
   jwt: string;
-}
+};
 
-export interface ResponseWithToken {
+export type ResponseWithToken = {
   id: number;
   username: string;
   email: string;
-}
+};

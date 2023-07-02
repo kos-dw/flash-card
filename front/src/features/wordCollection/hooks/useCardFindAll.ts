@@ -1,57 +1,51 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from 'features/authentication';
-import { kyClient } from 'utils';
-import { isWordList } from '../types';
-import type {
-  WordSchema,
-  WCResponse,
-  WordColection,
-  UseCardFindAll,
-} from '../types';
+import { useCardFindAllQuery } from 'features/graphql';
+import { isWordListWithGql } from '../types';
+import type { WordSchema, UseCardFindAll } from '../types';
 import { useConnecting } from './useConnecting';
 
 export const useCardFindAll = (): UseCardFindAll => {
-  const [cards, setCards] = useState<WordSchema[]>();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isConnecting] = useConnecting();
-  const [error, setError] = useState<unknown | undefined>();
   const [auth] = useAuth();
+  const [isConnecting] = useConnecting();
+  const [cards, setCards] = useState<WordSchema[]>();
+  const [result, reexecuteQuery] = useCardFindAllQuery();
+  const { data, fetching, error } = result;
 
-  const fetchCardFindAll = async (
-    endpoint: string,
-    token: string
-  ): Promise<void> => {
-    const json: WCResponse<WordColection[]> = await kyClient
-      .get(endpoint, {
-        searchParams: { populate: 'category' },
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      .json();
+  const createCollection = useCallback((): void => {
+    const collections = data?.wordCollections?.data as unknown;
 
-    if (!isWordList(json.data)) throw Error('API type error');
-
-    setCards(
-      json.data.map((row) => ({
-        uid: typeof row.id === 'number' ? row.id.toString() : row.id,
+    if (isWordListWithGql(collections)) {
+      const mutatedCollection = collections.map((row) => ({
+        uid: row.id,
         英文: row.attributes.title,
         意味: row.attributes.japanese,
-        カテゴリ: row.attributes.category.data.id.toString(),
-      }))
-    );
-  };
+        カテゴリ: row.attributes.category.data.id,
+      }));
+      setCards(mutatedCollection);
+    } else {
+      throw Error('API type error');
+    }
+  }, [data]);
+
+  const refresh = useCallback(() => {
+    reexecuteQuery({ requestPolicy: 'network-only' });
+  }, [reexecuteQuery]);
 
   useEffect(() => {
     try {
-      setIsLoading(true);
-      if (auth != null) void fetchCardFindAll('word-collections', auth.jwt);
-      setIsLoading(false);
+      if (auth != null) createCollection();
+      if (isConnecting) refresh();
     } catch (e) {
-      setError(e);
-      setIsLoading(false);
+      if (e instanceof Error) {
+        console.error('Oh no! We got an error:', e.message);
+      } else if (typeof e === 'string') {
+        console.error('Oh no! We got an error:', e);
+      } else {
+        console.log('Unexpected error');
+      }
     }
-  }, [auth, isLoading, isConnecting]);
+  }, [auth, isConnecting, fetching, createCollection, refresh]);
 
-  return [cards, { isLoading, error, setIsLoading }];
+  return [cards, { isLoading: fetching, error }];
 };

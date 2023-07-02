@@ -1,32 +1,39 @@
 import { useState } from 'react';
 import { useAuth } from 'features/authentication';
-import { kyClient } from 'utils';
+import { useCardEraseMutation } from 'features/graphql';
 import type { UseCardErase, OnDelete } from '../types';
 
 export const useCardErase = (): UseCardErase => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<unknown | undefined>();
   const [auth] = useAuth();
+  const [_, deleteCard] = useCardEraseMutation();
 
   const onDelete: OnDelete = async (uid, beforeRequest, afterResponse) => {
-    setIsLoading(true);
-
     try {
+      setIsLoading(true);
+
       if (auth != null) {
-        await kyClient.delete(`word-collections/${uid}`, {
-          searchParams: { populate: 'category' },
-          headers: {
-            Authorization: `Bearer ${auth.jwt}`,
-          },
-          hooks: {
-            beforeRequest: [beforeRequest],
-            afterResponse: [afterResponse],
-          },
+        beforeRequest();
+        const result = await deleteCard({
+          id: uid,
         });
+        afterResponse();
+
+        if (result.error != null) {
+          setError(result.error);
+        }
       }
 
       setIsLoading(false);
     } catch (e) {
+      if (e instanceof Error) {
+        console.error('Oh no! We got an error:', e.message);
+      } else if (typeof e === 'string') {
+        console.error('Oh no! We got an error:', e);
+      } else {
+        console.log('Unexpected error');
+      }
       setError(e);
       setIsLoading(false);
     }

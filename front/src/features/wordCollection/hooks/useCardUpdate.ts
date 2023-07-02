@@ -1,42 +1,40 @@
 import { useState } from 'react';
 import { useAuth } from 'features/authentication';
-import { kyClient } from 'utils';
+import { useCardUpdateMutation } from 'features/graphql';
 import type { UseCardUpdate, OnPut } from '../types';
 
 export const useCardUpdate = (): UseCardUpdate => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<unknown | undefined>();
   const [auth] = useAuth();
+  const [_, updateCard] = useCardUpdateMutation();
 
   const onPut: OnPut = async (formdata, beforeRequest, afterResponse) => {
-    setIsLoading(true);
-
-    const additionalData = {
-      data: {
-        title: formdata.英文,
-        japanese: formdata.意味,
-        category: {
-          id: Number(formdata.カテゴリ),
-        },
-      },
-    };
-
     try {
+      setIsLoading(true);
       if (auth != null) {
-        await kyClient.put(`word-collections/${formdata.uid}`, {
-          searchParams: { populate: 'category' },
-          headers: {
-            Authorization: `Bearer ${auth.jwt}`,
-          },
-          json: additionalData,
-          hooks: {
-            beforeRequest: [beforeRequest],
-            afterResponse: [afterResponse],
-          },
+        beforeRequest();
+        const result = await updateCard({
+          id: formdata.uid,
+          title: formdata.英文,
+          japanese: formdata.意味,
+          category: formdata.カテゴリ,
         });
+        afterResponse();
+
+        if (result.error != null) {
+          setError(result.error);
+        }
       }
       setIsLoading(false);
     } catch (e) {
+      if (e instanceof Error) {
+        console.error('Oh no! We got an error:', e.message);
+      } else if (typeof e === 'string') {
+        console.error('Oh no! We got an error:', e);
+      } else {
+        console.log('Unexpected error');
+      }
       setError(e);
       setIsLoading(false);
     }
